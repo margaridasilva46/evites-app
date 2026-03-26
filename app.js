@@ -1,6 +1,6 @@
 // 🔥 FIREBASE IMPORTS
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-import { getDatabase, ref, onValue, off } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-database.js";
+import { getDatabase, ref, onValue, off, update } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-database.js";
 
 // 🔥 FIREBASE CONFIG
 const firebaseConfig = {
@@ -108,12 +108,16 @@ onValue(customClassesRef, (snapshot) => {
 // ADD/REMOVE CLASS
 // =====================
 async function addCustomClass(dateStr) {
-  await ref(db, `customClasses/${dateStr}`).set(true);
+  const updates = {};
+  updates[`customClasses/${dateStr}`] = true;
+  await update(ref(db), updates);
 }
 
 async function removeCustomClass(dateStr) {
-  await ref(db, `customClasses/${dateStr}`).set(null);
-  await ref(db, `checkins/${dateStr}_custom`).set(null);
+  const updates = {};
+  updates[`customClasses/${dateStr}`] = null;
+  updates[`checkins/${dateStr}_custom`] = null;
+  await update(ref(db), updates);
 }
 
 // =====================
