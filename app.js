@@ -155,7 +155,7 @@ function renderMonthView() {
     if (isToday) cls += " today";
     if (isSelected) cls += " selected";
 
-    const attrs = effectiveClassId ? `data-key="${dateKey}" data-class="${effectiveClassId}" data-date="${date.toISOString()}"` : "";
+    const attrs = `data-key="${dateKey || ''}" data-class="${effectiveClassId || ''}" data-date="${date.toISOString()}"`;
     html += `<div class="${cls}" ${attrs}>${day}</div>`;
   }
 
@@ -195,7 +195,7 @@ function renderWeekView() {
     if (isToday) cls += " today";
     if (isSelected) cls += " selected";
 
-    const attrs = effectiveClassId ? `data-key="${dateKey}" data-class="${effectiveClassId}" data-date="${date.toISOString()}"` : "";
+    const attrs = `data-key="${dateKey || ''}" data-class="${effectiveClassId || ''}" data-date="${date.toISOString()}"`;
     html += `<div class="${cls}" ${attrs}>
       <div class="week-day-name">${dayNames[i]}</div>
       <div class="week-day-num">${date.getDate()}</div>
@@ -208,9 +208,11 @@ function renderWeekView() {
 }
 
 function attachDayHandlers(grid) {
-  grid.querySelectorAll("[data-key]").forEach(cell => {
+  grid.querySelectorAll("[data-date]").forEach(cell => {
     cell.onclick = () => {
-      onDateClick(cell.dataset.key, cell.dataset.class, new Date(cell.dataset.date));
+      const dateKey = cell.dataset.key || null;
+      const classId = cell.dataset.class || null;
+      onDateClick(dateKey, classId, new Date(cell.dataset.date));
     };
   });
 }
@@ -219,22 +221,26 @@ function attachDayHandlers(grid) {
 // DATE CLICK
 // =====================
 function onDateClick(dateKey, classId, date) {
-  selectedDateKey = dateKey;
-  selectedClassId = classId;
-
-  const className = classId === "wed" ? "Wednesday Class" : classId === "sun" ? "Sunday Class" : "Pointe Shoe Class";
+  lastClickedDate = date;
   const dateStr = date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
-  document.getElementById("panelTitle").textContent = className + " · " + dateStr;
 
-  // Show appropriate panel content
-  if (classId) {
+  if (!classId) {
+    // No class on this day
+    selectedDateKey = null;
+    selectedClassId = null;
+    document.getElementById("panelTitle").textContent = dateStr;
+    document.getElementById("panelNoClass").style.display = "block";
+    document.getElementById("panelWithClass").style.display = "none";
+  } else {
+    // Class exists on this day
+    selectedDateKey = dateKey;
+    selectedClassId = classId;
+    const className = classId === "wed" ? "Wednesday Class" : classId === "sun" ? "Sunday Class" : "Pointe Shoe Class";
+    document.getElementById("panelTitle").textContent = className + " · " + dateStr;
     document.getElementById("panelNoClass").style.display = "none";
     document.getElementById("panelWithClass").style.display = "block";
     document.getElementById("qrWrapper").style.display = "none";
     listenToStudents(dateKey);
-  } else {
-    document.getElementById("panelNoClass").style.display = "block";
-    document.getElementById("panelWithClass").style.display = "none";
   }
 
   openPanel();
@@ -318,9 +324,11 @@ document.getElementById("showQrBtn").onclick = () => {
 // =====================
 // ADD/REMOVE CLASS BUTTONS
 // =====================
+let lastClickedDate = null;
+
 document.getElementById("addClassBtn").onclick = async () => {
-  if (selectedDateKey) {
-    const dateStr = selectedDateKey.split("_")[0];
+  if (lastClickedDate) {
+    const dateStr = dateToDateKey(lastClickedDate);
     await addCustomClass(dateStr);
   }
 };
