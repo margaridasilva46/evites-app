@@ -74,7 +74,13 @@ function listenToStudents(classId) {
       if (data.status) {
         li.innerText = data.name + " • " + data.status;
       } else {
-        li.innerText = data.name;
+        if (data.status === "redirecting") {
+  li.innerText = data.name + " • unpaid";
+} else if (data.status === "paid") {
+  li.innerText = data.name + " • paid ✅";
+} else {
+  li.innerText = data.name;
+}
       }
 
       list.appendChild(li);
