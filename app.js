@@ -186,11 +186,14 @@ function renderMonthView() {
     const isSelected = dateKey && dateKey === selectedDateKey;
 
     let cls = "cal-day";
-    if (classId === "wed") cls += " class-wed";
-    else if (classId === "sun") cls += " class-sun";
-    else if (isCustom) cls += " class-custom";
-    else cls += " no-class";
-    if (isRemoved) cls += " removed";
+    if (isRemoved) {
+      cls += " no-class"; // Removed days look like empty days
+    } else {
+      if (classId === "wed") cls += " class-wed";
+      else if (classId === "sun") cls += " class-sun";
+      else if (isCustom) cls += " class-custom";
+      else cls += " no-class";
+    }
     if (isToday) cls += " today";
     if (isSelected) cls += " selected";
 
@@ -228,11 +231,14 @@ function renderWeekView() {
     const isSelected = dateKey && dateKey === selectedDateKey;
 
     let cls = "week-day";
-    if (classId === "wed") cls += " class-wed";
-    else if (classId === "sun") cls += " class-sun";
-    else if (isCustom) cls += " class-custom";
-    else cls += " no-class";
-    if (isRemoved) cls += " removed";
+    if (isRemoved) {
+      cls += " no-class"; // Removed days look like empty days
+    } else {
+      if (classId === "wed") cls += " class-wed";
+      else if (classId === "sun") cls += " class-sun";
+      else if (isCustom) cls += " class-custom";
+      else cls += " no-class";
+    }
     if (isToday) cls += " today";
     if (isSelected) cls += " selected";
 
@@ -397,10 +403,20 @@ async function selectClass(_classId) {
   // If it's a default Wed/Sun day, re-enable it. Otherwise, add as custom.
   const classTypeToAdd = defaultClassId || "custom";
 
-  await addCustomClass(dateStr, classTypeToAdd);
+  // Update UI immediately (optimistic)
+  if (classTypeToAdd === "custom") {
+    customClasses.add(dateStr);
+  } else {
+    removedClasses.delete(`${dateStr}_${classTypeToAdd}`);
+  }
+
   closeModal();
   const dateKey = buildDateKey(lastClickedDate, classTypeToAdd);
   onDateClick(dateKey, classTypeToAdd, lastClickedDate);
+  renderCalendar();
+
+  // Then sync to Firebase
+  await addCustomClass(dateStr, classTypeToAdd);
 }
 
 closeModalBtn.onclick = closeModal;
@@ -414,9 +430,12 @@ document.getElementById("addClassBtn").onclick = showClassModal;
 document.getElementById("removeClassBtn").onclick = async () => {
   if (selectedDateKey && selectedClassId) {
     const dateStr = selectedDateKey.split("_")[0];
-    await removeCustomClass(dateStr, selectedClassId);
+    // Update UI immediately
+    removedClasses.add(`${dateStr}_${selectedClassId}`);
     closePanel();
     renderCalendar();
+    // Then sync to Firebase
+    await removeCustomClass(dateStr, selectedClassId);
   }
 };
 

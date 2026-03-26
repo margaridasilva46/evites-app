@@ -166,18 +166,6 @@ h1 {
   color: white;
 }
 
-.cal-day.removed {
-  color: #ccc;
-}
-
-.cal-day.class-wed.removed {
-  background: #f0fbf6;
-}
-
-.cal-day.class-sun.removed {
-  background: #f3f2ff;
-}
-
 /* =====================
    WEEKLY GRID
    ===================== */
@@ -261,18 +249,6 @@ h1 {
 .week-day.class-custom.selected {
   background: #ff9f43;
   color: white;
-}
-
-.week-day.removed {
-  color: #ccc;
-}
-
-.week-day.class-wed.removed {
-  background: #f0fbf6;
-}
-
-.week-day.class-sun.removed {
-  background: #f3f2ff;
 }
 
 .week-day-name {
