@@ -18,12 +18,17 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 // =====================
-// QR LINKS
+// AVAILABLE CLASSES
 // =====================
+const availableClasses = [
+  { id: "pointe", name: "Pointe Shoes Class", color: "#ff9f43" }
+];
+
 const qrLinks = {
   wed: "https://evites-qr-cod.netlify.app/student.html?class=wed",
   sun: "https://evites-qr-cod.netlify.app/student.html?class=sun",
-  custom: "https://evites-qr-cod.netlify.app/student.html?class=custom"
+  custom: "https://evites-qr-cod.netlify.app/student.html?class=custom",
+  pointe: "https://evites-qr-cod.netlify.app/student.html?class=custom"
 };
 
 // =====================
@@ -228,15 +233,14 @@ function onDateClick(dateKey, classId, date) {
     // No class on this day
     selectedDateKey = null;
     selectedClassId = null;
-    document.getElementById("panelTitle").textContent = dateStr;
+    document.getElementById("panelTitle").innerHTML = "<div style='font-size: 14px; color: #999;'>" + dateStr + "</div>";
     document.getElementById("panelNoClass").style.display = "block";
     document.getElementById("panelWithClass").style.display = "none";
   } else {
     // Class exists on this day
     selectedDateKey = dateKey;
     selectedClassId = classId;
-    const className = classId === "wed" ? "Wednesday Class" : classId === "sun" ? "Sunday Class" : "Pointe Shoe Class";
-    document.getElementById("panelTitle").textContent = className + " · " + dateStr;
+    document.getElementById("panelTitle").innerHTML = "<div>Pointe Shoes Class</div><div style='font-size: 13px; color: #999; margin-top: 4px;'>" + dateStr + "</div>";
     document.getElementById("panelNoClass").style.display = "none";
     document.getElementById("panelWithClass").style.display = "block";
     document.getElementById("qrWrapper").style.display = "none";
@@ -322,16 +326,49 @@ document.getElementById("showQrBtn").onclick = () => {
 };
 
 // =====================
-// ADD/REMOVE CLASS BUTTONS
+// CLASS SELECTION MODAL
 // =====================
 let lastClickedDate = null;
+const modal = document.getElementById("classModal");
+const closeModalBtn = document.getElementById("closeModal");
 
-document.getElementById("addClassBtn").onclick = async () => {
+function showClassModal() {
+  const container = document.getElementById("classListContainer");
+  container.innerHTML = "";
+
+  availableClasses.forEach(cls => {
+    const classOption = document.createElement("div");
+    classOption.className = "class-option";
+    classOption.style.cursor = "pointer";
+    classOption.innerHTML = `<div style="font-weight: 600;">${cls.name}</div>`;
+    classOption.onclick = () => selectClass(cls.id);
+    container.appendChild(classOption);
+  });
+
+  modal.classList.add("active");
+}
+
+function closeModal() {
+  modal.classList.remove("active");
+}
+
+async function selectClass(classId) {
   if (lastClickedDate) {
     const dateStr = dateToDateKey(lastClickedDate);
-    await addCustomClass(dateStr);
+    if (classId === "pointe") {
+      await addCustomClass(dateStr);
+    }
   }
-};
+  closeModal();
+}
+
+closeModalBtn.onclick = closeModal;
+modal.onclick = (e) => { if (e.target === modal) closeModal(); };
+
+// =====================
+// ADD/REMOVE CLASS BUTTONS
+// =====================
+document.getElementById("addClassBtn").onclick = showClassModal;
 
 document.getElementById("removeClassBtn").onclick = async () => {
   if (selectedDateKey) {

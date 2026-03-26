@@ -383,3 +383,89 @@ h1 {
   cursor: pointer;
   margin-top: 12px;
 }
+
+/* =====================
+   MODAL
+   ===================== */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 1000;
+}
+
+.modal.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 360px;
+  padding: 20px;
+  box-sizing: border-box;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 18px;
+  color: #2d2d2d;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close:hover {
+  color: #555;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.class-option {
+  padding: 14px;
+  border: 2px solid #eee;
+  border-radius: 12px;
+  transition: 0.2s;
+  background: white;
+}
+
+.class-option:hover {
+  border-color: #2bb673;
+  background: #f9f9f9;
+}
