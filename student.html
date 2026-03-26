@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Evites Check-in</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      font-family: Inter, sans-serif;
+      background: #f5f6f8;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .card {
+      background: white;
+      padding: 24px;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 360px;
+      text-align: center;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    }
+
+    h1 {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      margin-top: 15px;
+      font-size: 16px;
+    }
+
+    button {
+      width: 100%;
+      margin-top: 15px;
+      padding: 14px;
+      border-radius: 12px;
+      border: none;
+      background: #2bb673;
+      color: white;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    button:active {
+      opacity: 0.85;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="card">
+  <h1>Evites Ballet</h1>
+  <p id="classText">Enter your name to check-in</p>
+
+  <input id="nameInput" placeholder="Your name" />
+
+  <button id="payBtn">Continue</button>
+</div>
+
+<!-- 🔥 Firebase (stable version for mobile) -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<script>
+  // 🔥 FIREBASE CONFIG
+  const firebaseConfig = {
+    apiKey: "AIzaSyCeOJs6sjZCCmvhAftzrUeUyZ6wB4oXHNw",
+    authDomain: "evites-qr-code.firebaseapp.com",
+    databaseURL: "https://evites-qr-code-default-rtdb.firebaseio.com",
+    projectId: "evites-qr-code",
+    storageBucket: "evites-qr-code.firebasestorage.app",
+    messagingSenderId: "976591325172",
+    appId: "1:976591325172:web:2ace676721ba1876bf5ba1"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  // 🧠 GET CLASS FROM URL
+  function getClassFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("class");
+  }
+
+  // 💳 STRIPE LINKS
+  function getStripeLink(classId) {
+    if (classId === "wed") {
+      return "https://buy.stripe.com/YOUR-WED-LINK";
+    }
+    if (classId === "sun") {
+      return "https://buy.stripe.com/YOUR-SUN-LINK";
+    }
+  }
+
+  window.onload = () => {
+
+    const classId = getClassFromURL();
+
+    // ✅ Show class name
+    if (classId === "wed") {
+      document.getElementById("classText").innerText = "Wednesday Class";
+    } else if (classId === "sun") {
+      document.getElementById("classText").innerText = "Sunday Class";
+    } else {
+      document.getElementById("classText").innerText = "Invalid class";
+    }
+
+    document.getElementById("payBtn").onclick = () => {
+      const name = document.getElementById("nameInput").value;
+
+      if (!name) {
+        alert("Enter your name");
+        return;
+      }
+
+      if (!classId) {
+        alert("Invalid class");
+        return;
+      }
+
+      const stripeLink = getStripeLink(classId);
+
+      // ✅ SAVE TO FIREBASE
+      db.ref("checkins/" + classId).push({
+        name: name,
+        time: Date.now(),
+        status: "redirecting"
+      })
+      .then(() => {
+
+        // ✅ UI FEEDBACK
+        const btn = document.getElementById("payBtn");
+        btn.innerText = "Redirecting...";
+
+        // ✅ REDIRECT TO STRIPE
+        setTimeout(() => {
+          window.location.href = stripeLink;
+        }, 500);
+
+      })
+      .catch((error) => {
+        console.error(error);
+        alert("Error saving");
+      });
+    };
+
+  };
+</script>
+
+</body>
+</html>
