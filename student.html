@@ -136,7 +136,7 @@
       db.ref("checkins/" + classId).push({
         name: name,
         time: Date.now(),
-        status: "redirecting"
+        status: "unpaid"
       })
       .then(() => {
 

@@ -74,18 +74,9 @@ function listenToStudents(classId) {
 
       const li = document.createElement("li");
 
-      // 🔥 show status if exists
-      if (data.status) {
-        li.innerText = data.name + " • " + data.status;
-      } else {
-        if (data.status === "redirecting") {
-  li.innerText = data.name + " • unpaid";
-} else if (data.status === "paid") {
-  li.innerText = data.name + " • paid ✅";
-} else {
-  li.innerText = data.name;
-}
-      }
+      const status = data.status === "paid" ? "paid" : "unpaid";
+      const statusColor = status === "paid" ? "#2bb673" : "#e53e3e";
+      li.innerHTML = data.name + ' • <span style="color:' + statusColor + '">' + status + "</span>";
 
       list.appendChild(li);
       count++;
