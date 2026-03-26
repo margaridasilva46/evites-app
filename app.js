@@ -352,14 +352,13 @@ function closeModal() {
   modal.classList.remove("active");
 }
 
-async function selectClass(classId) {
-  if (lastClickedDate) {
-    const dateStr = dateToDateKey(lastClickedDate);
-    if (classId === "pointe") {
-      await addCustomClass(dateStr);
-    }
-  }
+async function selectClass(_classId) {
+  if (!lastClickedDate) return;
+  const dateStr = dateToDateKey(lastClickedDate);
+  await addCustomClass(dateStr);
   closeModal();
+  const dateKey = buildDateKey(lastClickedDate, "custom");
+  onDateClick(dateKey, "custom", lastClickedDate);
 }
 
 closeModalBtn.onclick = closeModal;
