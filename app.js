@@ -22,7 +22,8 @@ const db = getDatabase(app);
 // =====================
 const qrLinks = {
   wed: "https://evites-qr-cod.netlify.app/student.html?class=wed",
-  sun: "https://evites-qr-cod.netlify.app/student.html?class=sun"
+  sun: "https://evites-qr-cod.netlify.app/student.html?class=sun",
+  custom: "https://evites-qr-cod.netlify.app/student.html?class=custom"
 };
 
 // =====================
@@ -36,6 +37,7 @@ let currentView = "month";
 let selectedDateKey = null;
 let selectedClassId = null;
 let currentListenerRef = null;
+let customClasses = new Set(); // Track dates with custom classes
 
 // =====================
 // HELPERS
@@ -60,6 +62,53 @@ function getClassId(dayOfWeek) {
   if (dayOfWeek === 3) return "wed";
   if (dayOfWeek === 0) return "sun";
   return null;
+}
+
+function dateToDateKey(date) {
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = date.getFullYear();
+  return `${dd}-${mm}-${yyyy}`;
+}
+
+function hasClass(date) {
+  const dateKey = dateToDateKey(date);
+  const classId = getClassId(date.getDay());
+  return classId || customClasses.has(dateKey);
+}
+
+function getClassTypeForDate(date) {
+  const dateKey = dateToDateKey(date);
+  const classId = getClassId(date.getDay());
+  if (classId) return classId;
+  if (customClasses.has(dateKey)) return "custom";
+  return null;
+}
+
+// =====================
+// LOAD CUSTOM CLASSES
+// =====================
+const customClassesRef = ref(db, "customClasses");
+onValue(customClassesRef, (snapshot) => {
+  customClasses.clear();
+  if (snapshot.exists()) {
+    Object.keys(snapshot.val()).forEach(dateKey => {
+      customClasses.add(dateKey);
+    });
+  }
+  renderCalendar();
+});
+
+// =====================
+// ADD/REMOVE CLASS
+// =====================
+async function addCustomClass(dateStr) {
+  await ref(db, `customClasses/${dateStr}`).set(true);
+}
+
+async function removeCustomClass(dateStr) {
+  await ref(db, `customClasses/${dateStr}`).set(null);
+  await ref(db, `checkins/${dateStr}_custom`).set(null);
 }
 
 // =====================
@@ -90,19 +139,23 @@ function renderMonthView() {
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
   for (let day = 1; day <= daysInMonth; day++) {
     const date = new Date(currentYear, currentMonth, day);
+    const dateStr = dateToDateKey(date);
     const classId = getClassId(date.getDay());
+    const isCustom = customClasses.has(dateStr);
     const isToday = date.toDateString() === today.toDateString();
-    const dateKey = classId ? buildDateKey(date, classId) : null;
+    const effectiveClassId = classId || (isCustom ? "custom" : null);
+    const dateKey = effectiveClassId ? buildDateKey(date, effectiveClassId) : null;
     const isSelected = dateKey && dateKey === selectedDateKey;
 
     let cls = "cal-day";
     if (classId === "wed") cls += " class-wed";
     else if (classId === "sun") cls += " class-sun";
+    else if (isCustom) cls += " class-custom";
     else cls += " no-class";
     if (isToday) cls += " today";
     if (isSelected) cls += " selected";
 
-    const attrs = classId ? `data-key="${dateKey}" data-class="${classId}" data-date="${date.toISOString()}"` : "";
+    const attrs = effectiveClassId ? `data-key="${dateKey}" data-class="${effectiveClassId}" data-date="${date.toISOString()}"` : "";
     html += `<div class="${cls}" ${attrs}>${day}</div>`;
   }
 
@@ -126,19 +179,23 @@ function renderWeekView() {
   for (let i = 0; i < 7; i++) {
     const date = new Date(weekStartDate);
     date.setDate(date.getDate() + i);
+    const dateStr = dateToDateKey(date);
     const classId = getClassId(date.getDay());
+    const isCustom = customClasses.has(dateStr);
     const isToday = date.toDateString() === today.toDateString();
-    const dateKey = classId ? buildDateKey(date, classId) : null;
+    const effectiveClassId = classId || (isCustom ? "custom" : null);
+    const dateKey = effectiveClassId ? buildDateKey(date, effectiveClassId) : null;
     const isSelected = dateKey && dateKey === selectedDateKey;
 
     let cls = "week-day";
     if (classId === "wed") cls += " class-wed";
     else if (classId === "sun") cls += " class-sun";
+    else if (isCustom) cls += " class-custom";
     else cls += " no-class";
     if (isToday) cls += " today";
     if (isSelected) cls += " selected";
 
-    const attrs = classId ? `data-key="${dateKey}" data-class="${classId}" data-date="${date.toISOString()}"` : "";
+    const attrs = effectiveClassId ? `data-key="${dateKey}" data-class="${effectiveClassId}" data-date="${date.toISOString()}"` : "";
     html += `<div class="${cls}" ${attrs}>
       <div class="week-day-name">${dayNames[i]}</div>
       <div class="week-day-num">${date.getDate()}</div>
@@ -165,14 +222,22 @@ function onDateClick(dateKey, classId, date) {
   selectedDateKey = dateKey;
   selectedClassId = classId;
 
-  const className = classId === "wed" ? "Wednesday Class" : "Sunday Class";
+  const className = classId === "wed" ? "Wednesday Class" : classId === "sun" ? "Sunday Class" : "Pointe Shoe Class";
   const dateStr = date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
   document.getElementById("panelTitle").textContent = className + " · " + dateStr;
 
-  document.getElementById("qrWrapper").style.display = "none";
+  // Show appropriate panel content
+  if (classId) {
+    document.getElementById("panelNoClass").style.display = "none";
+    document.getElementById("panelWithClass").style.display = "block";
+    document.getElementById("qrWrapper").style.display = "none";
+    listenToStudents(dateKey);
+  } else {
+    document.getElementById("panelNoClass").style.display = "block";
+    document.getElementById("panelWithClass").style.display = "none";
+  }
 
   openPanel();
-  listenToStudents(dateKey);
   renderCalendar();
 }
 
@@ -247,6 +312,25 @@ document.getElementById("showQrBtn").onclick = () => {
     QRCode.toCanvas(canvas, qrLinks[selectedClassId], { width: 220, margin: 2 });
   } else {
     wrapper.style.display = "none";
+  }
+};
+
+// =====================
+// ADD/REMOVE CLASS BUTTONS
+// =====================
+document.getElementById("addClassBtn").onclick = async () => {
+  if (selectedDateKey) {
+    const dateStr = selectedDateKey.split("_")[0];
+    await addCustomClass(dateStr);
+  }
+};
+
+document.getElementById("removeClassBtn").onclick = async () => {
+  if (selectedDateKey) {
+    const dateStr = selectedDateKey.split("_")[0];
+    await removeCustomClass(dateStr);
+    closePanel();
+    renderCalendar();
   }
 };
 

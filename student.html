@@ -96,12 +96,8 @@
 
   // 💳 STRIPE LINKS
   function getStripeLink(classId) {
-    if (classId === "wed") {
-      return "https://buy.stripe.com/test_4gM3cucH49gq2hx0gJfw400";
-    }
-    if (classId === "sun") {
-      return "https://buy.stripe.com/test_4gM3cucH49gq2hx0gJfw400";
-    }
+    // All classes use the same €4.50 Stripe link
+    return "https://buy.stripe.com/test_4gM3cucH49gq2hx0gJfw400";
   }
 
   window.onload = () => {
@@ -113,6 +109,8 @@
       document.getElementById("classText").innerText = "Wednesday Class";
     } else if (classId === "sun") {
       document.getElementById("classText").innerText = "Sunday Class";
+    } else if (classId === "custom") {
+      document.getElementById("classText").innerText = "Pointe Shoe Class";
     } else {
       document.getElementById("classText").innerText = "Invalid class";
     }
