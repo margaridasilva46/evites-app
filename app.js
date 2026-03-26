@@ -43,6 +43,7 @@ let selectedDateKey = null;
 let selectedClassId = null;
 let currentListenerRef = null;
 let customClasses = new Set(); // Track dates with custom classes
+let removedClasses = new Set(); // Track removed Wed/Sun classes
 
 // =====================
 // HELPERS
@@ -85,13 +86,19 @@ function hasClass(date) {
 function getClassTypeForDate(date) {
   const dateKey = dateToDateKey(date);
   const classId = getClassId(date.getDay());
+
+  // Check if Wed/Sun is removed
+  if (classId && removedClasses.has(`${dateKey}_${classId}`)) {
+    return null; // Class was removed
+  }
+
   if (classId) return classId;
   if (customClasses.has(dateKey)) return "custom";
   return null;
 }
 
 // =====================
-// LOAD CUSTOM CLASSES
+// LOAD CUSTOM CLASSES & REMOVED CLASSES
 // =====================
 const customClassesRef = ref(db, "customClasses");
 onValue(customClassesRef, (snapshot) => {
@@ -104,19 +111,40 @@ onValue(customClassesRef, (snapshot) => {
   renderCalendar();
 });
 
+const removedClassesRef = ref(db, "removedClasses");
+onValue(removedClassesRef, (snapshot) => {
+  removedClasses.clear();
+  if (snapshot.exists()) {
+    Object.keys(snapshot.val()).forEach(dateKey => {
+      removedClasses.add(dateKey);
+    });
+  }
+  renderCalendar();
+});
+
 // =====================
 // ADD/REMOVE CLASS
 // =====================
-async function addCustomClass(dateStr) {
+async function addCustomClass(dateStr, classType = "custom") {
   const updates = {};
-  updates[`customClasses/${dateStr}`] = true;
+  if (classType === "custom") {
+    updates[`customClasses/${dateStr}`] = true;
+  } else if (classType === "wed" || classType === "sun") {
+    // Unremove Wed/Sun
+    updates[`removedClasses/${dateStr}_${classType}`] = null;
+  }
   await update(ref(db), updates);
 }
 
-async function removeCustomClass(dateStr) {
+async function removeCustomClass(dateStr, classType = "custom") {
   const updates = {};
-  updates[`customClasses/${dateStr}`] = null;
-  updates[`checkins/${dateStr}_custom`] = null;
+  if (classType === "custom") {
+    updates[`customClasses/${dateStr}`] = null;
+    updates[`checkins/${dateStr}_custom`] = null;
+  } else if (classType === "wed" || classType === "sun") {
+    // Mark Wed/Sun as removed
+    updates[`removedClasses/${dateStr}_${classType}`] = true;
+  }
   await update(ref(db), updates);
 }
 
@@ -150,9 +178,10 @@ function renderMonthView() {
     const date = new Date(currentYear, currentMonth, day);
     const dateStr = dateToDateKey(date);
     const classId = getClassId(date.getDay());
+    const isRemoved = classId && removedClasses.has(`${dateStr}_${classId}`);
     const isCustom = customClasses.has(dateStr);
     const isToday = date.toDateString() === today.toDateString();
-    const effectiveClassId = classId || (isCustom ? "custom" : null);
+    const effectiveClassId = (classId && !isRemoved) ? classId : (isCustom ? "custom" : null);
     const dateKey = effectiveClassId ? buildDateKey(date, effectiveClassId) : null;
     const isSelected = dateKey && dateKey === selectedDateKey;
 
@@ -190,9 +219,10 @@ function renderWeekView() {
     date.setDate(date.getDate() + i);
     const dateStr = dateToDateKey(date);
     const classId = getClassId(date.getDay());
+    const isRemoved = classId && removedClasses.has(`${dateStr}_${classId}`);
     const isCustom = customClasses.has(dateStr);
     const isToday = date.toDateString() === today.toDateString();
-    const effectiveClassId = classId || (isCustom ? "custom" : null);
+    const effectiveClassId = (classId && !isRemoved) ? classId : (isCustom ? "custom" : null);
     const dateKey = effectiveClassId ? buildDateKey(date, effectiveClassId) : null;
     const isSelected = dateKey && dateKey === selectedDateKey;
 
@@ -359,10 +389,16 @@ function closeModal() {
 async function selectClass(_classId) {
   if (!lastClickedDate) return;
   const dateStr = dateToDateKey(lastClickedDate);
-  await addCustomClass(dateStr);
+  const dayOfWeek = lastClickedDate.getDay();
+  const defaultClassId = getClassId(dayOfWeek); // "wed", "sun", or null
+
+  // If it's a default Wed/Sun day, re-enable it. Otherwise, add as custom.
+  const classTypeToAdd = defaultClassId || "custom";
+
+  await addCustomClass(dateStr, classTypeToAdd);
   closeModal();
-  const dateKey = buildDateKey(lastClickedDate, "custom");
-  onDateClick(dateKey, "custom", lastClickedDate);
+  const dateKey = buildDateKey(lastClickedDate, classTypeToAdd);
+  onDateClick(dateKey, classTypeToAdd, lastClickedDate);
 }
 
 closeModalBtn.onclick = closeModal;
@@ -374,9 +410,9 @@ modal.onclick = (e) => { if (e.target === modal) closeModal(); };
 document.getElementById("addClassBtn").onclick = showClassModal;
 
 document.getElementById("removeClassBtn").onclick = async () => {
-  if (selectedDateKey) {
+  if (selectedDateKey && selectedClassId) {
     const dateStr = selectedDateKey.split("_")[0];
-    await removeCustomClass(dateStr);
+    await removeCustomClass(dateStr, selectedClassId);
     closePanel();
     renderCalendar();
   }
