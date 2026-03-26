@@ -18,7 +18,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 // =====================
-// CLASSES
+// CLASSES (QR LINKS FIXED)
 // =====================
 
 const classes = [
@@ -27,7 +27,7 @@ const classes = [
     time: "Wednesday · 11:30",
     price: "€4,50",
     color: "#2bb673",
-    link: "student.html?class=wed", // ✅ UPDATED
+    link: "https://evites-qr-cod.netlify.app/student.html?class=wed",
     id: "wed"
   },
   {
@@ -35,7 +35,7 @@ const classes = [
     time: "Sunday · 12:45",
     price: "€4,50",
     color: "#6c63ff",
-    link: "student.html?class=sun", // ✅ UPDATED
+    link: "https://evites-qr-cod.netlify.app/student.html?class=sun",
     id: "sun"
   }
 ];
@@ -69,7 +69,13 @@ function listenToStudents(classId) {
       const data = child.val();
 
       const li = document.createElement("li");
-      li.innerText = data.name;
+
+      // 🔥 show status if exists
+      if (data.status) {
+        li.innerText = data.name + " • " + data.status;
+      } else {
+        li.innerText = data.name;
+      }
 
       list.appendChild(li);
       count++;
@@ -178,7 +184,6 @@ panelContent.addEventListener("touchmove", (e) => {
   let diff = currentY - startY;
 
   if (diff > 0) {
-    // slight resistance like iOS
     let resistance = diff * 0.9;
 
     panelContent.style.transform =
@@ -197,7 +202,6 @@ panelContent.addEventListener("touchend", () => {
     "transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)";
 
   if (diff > 80) {
-    // CLOSE
     panelContent.style.transform =
       "translateX(-50%) translateY(100%)";
 
@@ -205,7 +209,6 @@ panelContent.addEventListener("touchend", () => {
       panel.classList.remove("active");
     }, 300);
   } else {
-    // SNAP BACK
     panelContent.style.transform =
       "translateX(-50%) translateY(0)";
   }
