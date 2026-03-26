@@ -6,6 +6,7 @@ import { getDatabase, ref, onValue, off } from "https://www.gstatic.com/firebase
 const firebaseConfig = {
   apiKey: "AIzaSyCeOJs6sjZCCmvhAftzrUeUyZ6wB4oXHNw",
   authDomain: "evites-qr-code.firebaseapp.com",
+  databaseURL: "https://evites-qr-code-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "evites-qr-code",
   storageBucket: "evites-qr-code.firebasestorage.app",
   messagingSenderId: "976591325172",
@@ -47,15 +48,18 @@ const classes = [
 let currentRef = null;
 
 function listenToStudents(classId) {
+
+  console.log("Listening to:", classId); // 👈 ADD THIS
+
   const list = document.getElementById("studentList");
   const countText = document.getElementById("checkinCount");
 
-  if (currentRef) off(currentRef);
-
   const studentsRef = ref(db, "checkins/" + classId);
-  currentRef = studentsRef;
 
   onValue(studentsRef, (snapshot) => {
+
+    console.log("DATA:", snapshot.val()); // 👈 ADD THIS
+
     list.innerHTML = "";
 
     let count = 0;
