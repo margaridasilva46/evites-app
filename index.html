@@ -7,43 +7,41 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2bb673">
-
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Evites">
   <link rel="apple-touch-icon" href="icon.png">
 </head>
-
 <body>
 
 <div class="container">
   <h1>Evites Ballet & Dansschool</h1>
 
- <div id="classes"></div>
+  <div class="view-toggle">
+    <button id="btnMonth" class="toggle-btn active">Month</button>
+    <button id="btnWeek" class="toggle-btn">Week</button>
+  </div>
 
-<h2 id="status">Select a class</h2>
-<h3 id="selectedClass"></h3>
+  <div class="cal-nav">
+    <button class="nav-btn" id="prevBtn">‹</button>
+    <span id="calTitle"></span>
+    <button class="nav-btn" id="nextBtn">›</button>
+  </div>
 
-<!-- QR -->
-<div class="qr-container"></div>
-
-<!-- Button -->
-<button id="openCheckin">Checked-in list</button>
+  <div id="calendarGrid"></div>
 </div>
 
 <!-- Slide-up panel -->
 <div id="checkinPanel" class="panel">
   <div class="panel-content">
-
-    <!-- drag handle -->
     <div class="handle"></div>
-
+    <h3 id="panelTitle"></h3>
     <p id="checkinCount">0 students checked-in</p>
-
     <ul id="studentList"></ul>
-
-    <button id="addStudent">+ Add student</button>
-
+    <button id="showQrBtn">Show QR Code</button>
+    <div id="qrWrapper">
+      <canvas id="qrCanvas"></canvas>
+    </div>
   </div>
 </div>
 

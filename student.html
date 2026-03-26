@@ -132,30 +132,34 @@
 
       const stripeLink = getStripeLink(classId);
 
-      // ✅ SAVE TO FIREBASE
-      db.ref("checkins/" + classId).push({
+      // 👉 GET TODAY DATE
+const today = new Date();
+
+const dd = String(today.getDate()).padStart(2, "0");
+const mm = String(today.getMonth() + 1).padStart(2, "0");
+const yyyy = today.getFullYear();
+
+// 👉 BUILD KEY
+const dateKey = `${dd}-${mm}-${yyyy}_${classId}`;
+
+// 🔥 SAVE
+      db.ref("checkins/" + dateKey).push({
         name: name,
         time: Date.now(),
         status: "unpaid"
       })
       .then(() => {
-
-        // ✅ UI FEEDBACK
         const btn = document.getElementById("payBtn");
         btn.innerText = "Redirecting...";
-
-        // ✅ REDIRECT TO STRIPE
         setTimeout(() => {
           window.location.href = stripeLink;
         }, 500);
-
       })
       .catch((error) => {
         console.error(error);
         alert("Error saving");
       });
     };
-
   };
 </script>
 

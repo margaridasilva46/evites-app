@@ -14,156 +14,289 @@ const firebaseConfig = {
   measurementId: "G-92Z6LNP9N3"
 };
 
-// 🔥 INIT FIREBASE
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 // =====================
-// CLASSES (QR LINKS FIXED)
+// QR LINKS
 // =====================
+const qrLinks = {
+  wed: "https://evites-qr-cod.netlify.app/student.html?class=wed",
+  sun: "https://evites-qr-cod.netlify.app/student.html?class=sun"
+};
 
-const classes = [
-  {
-    name: "Pointe Class",
-    time: "Wednesday · 11:30",
-    price: "€4,50",
-    color: "#2bb673",
-    link: "https://evites-qr-cod.netlify.app/student.html?class=wed",
-    id: "wed"
-  },
-  {
-    name: "Pointe Class",
-    time: "Sunday · 12:45",
-    price: "€4,50",
-    color: "#6c63ff",
-    link: "https://evites-qr-cod.netlify.app/student.html?class=sun",
-    id: "sun"
+// =====================
+// STATE
+// =====================
+const today = new Date();
+let currentYear = today.getFullYear();
+let currentMonth = today.getMonth();
+let weekStartDate = getWeekStart(today);
+let currentView = "month";
+let selectedDateKey = null;
+let selectedClassId = null;
+let currentListenerRef = null;
+
+// =====================
+// HELPERS
+// =====================
+function getWeekStart(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+
+function buildDateKey(date, classId) {
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = date.getFullYear();
+  return `${dd}-${mm}-${yyyy}_${classId}`;
+}
+
+function getClassId(dayOfWeek) {
+  if (dayOfWeek === 3) return "wed";
+  if (dayOfWeek === 0) return "sun";
+  return null;
+}
+
+// =====================
+// CALENDAR RENDER
+// =====================
+function renderCalendar() {
+  if (currentView === "month") renderMonthView();
+  else renderWeekView();
+}
+
+function renderMonthView() {
+  const grid = document.getElementById("calendarGrid");
+  const title = document.getElementById("calTitle");
+
+  const monthNames = ["January","February","March","April","May","June",
+                      "July","August","September","October","November","December"];
+  title.textContent = monthNames[currentMonth] + " " + currentYear;
+
+  const dayHeaders = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  let html = '<div class="cal-grid">';
+  dayHeaders.forEach(d => { html += `<div class="cal-header">${d}</div>`; });
+
+  const firstDay = new Date(currentYear, currentMonth, 1);
+  let startDow = firstDay.getDay();
+  startDow = startDow === 0 ? 6 : startDow - 1;
+  for (let i = 0; i < startDow; i++) html += '<div class="cal-day empty"></div>';
+
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(currentYear, currentMonth, day);
+    const classId = getClassId(date.getDay());
+    const isToday = date.toDateString() === today.toDateString();
+    const dateKey = classId ? buildDateKey(date, classId) : null;
+    const isSelected = dateKey && dateKey === selectedDateKey;
+
+    let cls = "cal-day";
+    if (classId === "wed") cls += " class-wed";
+    else if (classId === "sun") cls += " class-sun";
+    else cls += " no-class";
+    if (isToday) cls += " today";
+    if (isSelected) cls += " selected";
+
+    const attrs = classId ? `data-key="${dateKey}" data-class="${classId}" data-date="${date.toISOString()}"` : "";
+    html += `<div class="${cls}" ${attrs}>${day}</div>`;
   }
-];
 
-// =====================
-// FIREBASE LISTENER
-// =====================
+  html += '</div>';
+  grid.innerHTML = html;
+  attachDayHandlers(grid);
+}
 
-let currentRef = null;
+function renderWeekView() {
+  const grid = document.getElementById("calendarGrid");
+  const title = document.getElementById("calTitle");
 
-function listenToStudents(classId) {
+  const weekEnd = new Date(weekStartDate);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+  const fmt = { day: "numeric", month: "short" };
+  title.textContent = weekStartDate.toLocaleDateString("en-GB", fmt) + " – " + weekEnd.toLocaleDateString("en-GB", fmt);
 
-  console.log("Listening to:", classId); // 👈 ADD THIS
+  const dayNames = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  let html = '<div class="week-grid">';
 
-  const list = document.getElementById("studentList");
-  const countText = document.getElementById("checkinCount");
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(weekStartDate);
+    date.setDate(date.getDate() + i);
+    const classId = getClassId(date.getDay());
+    const isToday = date.toDateString() === today.toDateString();
+    const dateKey = classId ? buildDateKey(date, classId) : null;
+    const isSelected = dateKey && dateKey === selectedDateKey;
 
-  const studentsRef = ref(db, "checkins/" + classId);
+    let cls = "week-day";
+    if (classId === "wed") cls += " class-wed";
+    else if (classId === "sun") cls += " class-sun";
+    else cls += " no-class";
+    if (isToday) cls += " today";
+    if (isSelected) cls += " selected";
 
-  onValue(studentsRef, (snapshot) => {
+    const attrs = classId ? `data-key="${dateKey}" data-class="${classId}" data-date="${date.toISOString()}"` : "";
+    html += `<div class="${cls}" ${attrs}>
+      <div class="week-day-name">${dayNames[i]}</div>
+      <div class="week-day-num">${date.getDate()}</div>
+    </div>`;
+  }
 
-    console.log("DATA:", snapshot.val()); // 👈 ADD THIS
+  html += '</div>';
+  grid.innerHTML = html;
+  attachDayHandlers(grid);
+}
 
-    list.innerHTML = "";
-
-    let count = 0;
-
-    if (!snapshot.exists()) {
-      countText.innerText = "0 students checked-in";
-      return;
-    }
-
-    snapshot.forEach((child) => {
-      const data = child.val();
-
-      const li = document.createElement("li");
-
-      const status = data.status === "paid" ? "paid" : "unpaid";
-      const statusColor = status === "paid" ? "#2bb673" : "#e53e3e";
-      li.innerHTML = data.name + ' • <span style="color:' + statusColor + '">' + status + "</span>";
-
-      list.appendChild(li);
-      count++;
-    });
-
-    countText.innerText = count + " students checked-in";
+function attachDayHandlers(grid) {
+  grid.querySelectorAll("[data-key]").forEach(cell => {
+    cell.onclick = () => {
+      onDateClick(cell.dataset.key, cell.dataset.class, new Date(cell.dataset.date));
+    };
   });
 }
 
 // =====================
-// UI ELEMENTS
+// DATE CLICK
 // =====================
+function onDateClick(dateKey, classId, date) {
+  selectedDateKey = dateKey;
+  selectedClassId = classId;
 
-const container = document.getElementById("classes");
+  const className = classId === "wed" ? "Wednesday Class" : "Sunday Class";
+  const dateStr = date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  document.getElementById("panelTitle").textContent = className + " · " + dateStr;
+
+  document.getElementById("qrWrapper").style.display = "none";
+
+  openPanel();
+  listenToStudents(dateKey);
+  renderCalendar();
+}
+
+// =====================
+// FIREBASE LISTENER
+// =====================
+function listenToStudents(dateKey) {
+  const list = document.getElementById("studentList");
+  const countText = document.getElementById("checkinCount");
+
+  if (currentListenerRef) off(currentListenerRef);
+
+  const studentsRef = ref(db, "checkins/" + dateKey);
+  currentListenerRef = studentsRef;
+
+  onValue(studentsRef, (snapshot) => {
+    list.innerHTML = "";
+
+    if (!snapshot.exists()) {
+      countText.textContent = "0 students checked-in";
+      return;
+    }
+
+    let count = 0;
+    snapshot.forEach((child) => {
+      const data = child.val();
+      const li = document.createElement("li");
+      const status = data.status === "paid" ? "paid" : "unpaid";
+      const statusColor = status === "paid" ? "#2bb673" : "#e53e3e";
+      li.innerHTML = data.name + ' • <span style="color:' + statusColor + '">' + status + "</span>";
+      list.appendChild(li);
+      count++;
+    });
+
+    countText.textContent = count + " students checked-in";
+  });
+}
+
+// =====================
+// PANEL
+// =====================
 const panel = document.getElementById("checkinPanel");
 const panelContent = document.querySelector(".panel-content");
 
-let currentClassId = "";
-
-// =====================
-// CREATE CLASS CARDS
-// =====================
-
-classes.forEach((cls) => {
-
-  const card = document.createElement("div");
-  card.className = "card";
-  card.style.borderLeftColor = cls.color;
-
-  card.innerHTML = `
-    <div class="title">${cls.name}</div>
-    <div class="time">${cls.time}</div>
-    <div class="price">${cls.price}</div>
-  `;
-
-  card.onclick = () => {
-    document.querySelectorAll(".card").forEach(c => c.classList.remove("active"));
-    card.classList.add("active");
-
-    const qrContainer = document.querySelector(".qr-container");
-    qrContainer.classList.add("active");
-    qrContainer.innerHTML = "";
-
-    const canvas = document.createElement("canvas");
-    qrContainer.appendChild(canvas);
-
-    QRCode.toCanvas(canvas, cls.link, {
-      width: 280,
-      margin: 2
-    });
-
-    document.getElementById("status").innerText = "Scan to pay";
-    document.getElementById("selectedClass").innerText =
-      cls.name + " – " + cls.time;
-
-    currentClassId = cls.id;
-    listenToStudents(currentClassId);
-  };
-
-  container.appendChild(card);
-});
-
-// =====================
-// OPEN PANEL (SMOOTH)
-// =====================
-
-document.getElementById("openCheckin").onclick = () => {
-
+function openPanel() {
   panelContent.style.transition = "none";
   panelContent.style.transform = "translateX(-50%) translateY(100%)";
-
   panelContent.offsetHeight;
-
   panel.classList.add("active");
-
   requestAnimationFrame(() => {
-    panelContent.style.transition =
-      "transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)";
-    panelContent.style.transform =
-      "translateX(-50%) translateY(0)";
+    panelContent.style.transition = "transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)";
+    panelContent.style.transform = "translateX(-50%) translateY(0)";
   });
+}
+
+function closePanel() {
+  panelContent.style.transition = "transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)";
+  panelContent.style.transform = "translateX(-50%) translateY(100%)";
+  setTimeout(() => panel.classList.remove("active"), 300);
+}
+
+panel.onclick = (e) => { if (e.target === panel) closePanel(); };
+
+// =====================
+// QR BUTTON
+// =====================
+document.getElementById("showQrBtn").onclick = () => {
+  const wrapper = document.getElementById("qrWrapper");
+  if (wrapper.style.display === "none") {
+    wrapper.style.display = "block";
+    const canvas = document.getElementById("qrCanvas");
+    QRCode.toCanvas(canvas, qrLinks[selectedClassId], { width: 220, margin: 2 });
+  } else {
+    wrapper.style.display = "none";
+  }
 };
 
 // =====================
-// SWIPE DOWN (IPHONE STYLE)
+// NAVIGATION
 // =====================
+document.getElementById("prevBtn").onclick = () => {
+  if (currentView === "month") {
+    currentMonth--;
+    if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+  } else {
+    const d = new Date(weekStartDate);
+    d.setDate(d.getDate() - 7);
+    weekStartDate = d;
+  }
+  renderCalendar();
+};
 
+document.getElementById("nextBtn").onclick = () => {
+  if (currentView === "month") {
+    currentMonth++;
+    if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+  } else {
+    const d = new Date(weekStartDate);
+    d.setDate(d.getDate() + 7);
+    weekStartDate = d;
+  }
+  renderCalendar();
+};
+
+// =====================
+// VIEW TOGGLE
+// =====================
+document.getElementById("btnMonth").onclick = () => {
+  currentView = "month";
+  document.getElementById("btnMonth").classList.add("active");
+  document.getElementById("btnWeek").classList.remove("active");
+  renderCalendar();
+};
+
+document.getElementById("btnWeek").onclick = () => {
+  currentView = "week";
+  document.getElementById("btnWeek").classList.add("active");
+  document.getElementById("btnMonth").classList.remove("active");
+  renderCalendar();
+};
+
+// =====================
+// SWIPE DOWN TO CLOSE
+// =====================
 let startY = 0;
 let currentY = 0;
 let isDragging = false;
@@ -172,48 +305,29 @@ panelContent.addEventListener("touchstart", (e) => {
   startY = e.touches[0].clientY;
   currentY = startY;
   isDragging = true;
-
   panelContent.style.transition = "none";
 }, { passive: false });
 
 panelContent.addEventListener("touchmove", (e) => {
   if (!isDragging) return;
-
   e.preventDefault();
-
   currentY = e.touches[0].clientY;
-  let diff = currentY - startY;
-
-  if (diff > 0) {
-    let resistance = diff * 0.9;
-
-    panelContent.style.transform =
-      `translateX(-50%) translateY(${resistance}px)`;
-  }
+  const diff = currentY - startY;
+  if (diff > 0) panelContent.style.transform = `translateX(-50%) translateY(${diff * 0.9}px)`;
 }, { passive: false });
 
 panelContent.addEventListener("touchend", () => {
   if (!isDragging) return;
-
   isDragging = false;
-
-  let diff = currentY - startY;
-
-  panelContent.style.transition =
-    "transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)";
-
-  if (diff > 80) {
-    panelContent.style.transform =
-      "translateX(-50%) translateY(100%)";
-
-    setTimeout(() => {
-      panel.classList.remove("active");
-    }, 300);
-  } else {
-    panelContent.style.transform =
-      "translateX(-50%) translateY(0)";
-  }
-
+  const diff = currentY - startY;
+  panelContent.style.transition = "transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)";
+  if (diff > 80) closePanel();
+  else panelContent.style.transform = "translateX(-50%) translateY(0)";
   startY = 0;
   currentY = 0;
 });
+
+// =====================
+// INIT
+// =====================
+renderCalendar();
