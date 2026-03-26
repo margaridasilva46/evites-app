@@ -190,6 +190,7 @@ function renderMonthView() {
     else if (classId === "sun") cls += " class-sun";
     else if (isCustom) cls += " class-custom";
     else cls += " no-class";
+    if (isRemoved) cls += " removed";
     if (isToday) cls += " today";
     if (isSelected) cls += " selected";
 
@@ -231,6 +232,7 @@ function renderWeekView() {
     else if (classId === "sun") cls += " class-sun";
     else if (isCustom) cls += " class-custom";
     else cls += " no-class";
+    if (isRemoved) cls += " removed";
     if (isToday) cls += " today";
     if (isSelected) cls += " selected";
 
