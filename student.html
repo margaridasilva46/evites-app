@@ -16,55 +16,150 @@
     }
 
     .card {
-      background: white;
-      padding: 24px;
-      border-radius: 16px;
-      width: 90%;
-      max-width: 360px;
-      text-align: center;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-    }
+  background: white;
+  padding: 20px 24px 28px;
+  border-radius: 20px;
+  width: 90%;
+  max-width: 360px;
+  text-align: center;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+  margin: 0 auto;
+
+  animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
     h1 {
-      font-size: 20px;
-      margin-bottom: 10px;
-    }
+  font-size: 20px;
+  margin-bottom: 6px;
+}
+
+.logo {
+  width: 80px;
+  margin-bottom: 0px;
+  opacity: 0.9;
+}
+
+.app-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #666;
+  margin-bottom: 2px;
+}
 
     input {
-      width: 100%;
-      padding: 12px;
-      border-radius: 10px;
-      border: 1px solid #ddd;
-      margin-top: 15px;
-      font-size: 16px;
-    }
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #eee;
+  margin-top: 15px;
+  margin-bottom: 12px;
+  font-size: 16px;
+  box-sizing: border-box;
+  display: block;
+}
+
+input:focus {
+  outline: none;
+  border: 1px solid #ccc;
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.05);
+}
+
+.input-group {
+  position: relative;
+  margin-top: 15px;
+  margin-bottom: 12px;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 14px 12px;
+  border-radius: 10px;
+  border: 1px solid #eee;
+  font-size: 16px;
+  box-sizing: border-box;
+  display: block;
+  background: white;
+}
+
+.input-group label {
+  position: absolute;
+  left: 12px;
+  top: 18px;
+  font-size: 14px;
+  color: #999;
+  pointer-events: none;
+  transition: all 0.2s ease;
+  background: white;
+  padding: 0 4px;
+}
+
+/* ✨ when focused or filled */
+.input-group input:focus + label,
+.input-group input:not(:placeholder-shown) + label {
+  top: -8px;
+  font-size: 11px;
+  color: #2bb673;
+}
+
+/* focus animation (keep your previous one) */
+.input-group input:focus {
+  outline: none;
+  border: 1px solid #2bb673;
+  box-shadow: 0 0 0 3px rgba(43, 182, 115, 0.15);
+}
 
     button {
-      width: 100%;
-      margin-top: 15px;
-      padding: 14px;
-      border-radius: 12px;
-      border: none;
-      background: #2bb673;
-      color: white;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-    }
+  width: 100%;
+  margin-top: 10px;
+  padding: 14px;
+  border-radius: 14px;
+  border: none;
+
+  background: #2bb673;
+  color: white;
+
+  font-size: 15px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  box-shadow: 0 4px 10px rgba(43, 182, 115, 0.2);
+  transition: all 0.2s ease;
+}
 
     button:active {
-      opacity: 0.85;
-    }
+  transform: scale(0.98);
+  box-shadow: 0 2px 6px rgba(43, 182, 115, 0.15);
+}
+
+    #classText {
+  margin-top: 2px;
+  margin-bottom: 16px;
+}
   </style>
 </head>
 
 <body>
 
 <div class="card">
-  <h1>Evites Ballet</h1>
+  <img src="icon.png" class="logo" />
   <p id="classText">Enter your name to check-in</p>
 
-  <input id="nameInput" placeholder="Your name" />
+  <div class="input-group">
+  <input id="nameInput" placeholder=" " required />
+  <label for="nameInput">Your name</label>
+</div>
 
   <button id="payBtn">Continue</button>
 </div>
@@ -74,7 +169,6 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
 <script>
-  // 🔥 FIREBASE CONFIG
   const firebaseConfig = {
     apiKey: "AIzaSyCeOJs6sjZCCmvhAftzrUeUyZ6wB4oXHNw",
     authDomain: "evites-qr-code.firebaseapp.com",
@@ -88,76 +182,101 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
-  // 🧠 GET CLASS FROM URL
-  function getClassFromURL() {
+  function getStripeLink(dateKey, checkinId) {
+  return "https://buy.stripe.com/test_4gM3cucH49gq2hx0gJfw400"
+    + "?success_url=" + encodeURIComponent(
+        window.location.origin +
+        "/success.html?key=" + dateKey + "&id=" + checkinId
+      )
+    + "&cancel_url=" + encodeURIComponent(window.location.href);
+}
+
+  window.onload = function () {
+
     const params = new URLSearchParams(window.location.search);
-    return params.get("class");
+const classId = params.get("class") || "custom";
+
+if (params.get("success") === "true") {
+  const dateKey = params.get("key");
+  const checkinId = params.get("id");
+
+  if (dateKey && checkinId) {
+    db.ref("checkins/" + dateKey + "/" + checkinId).update({
+      status: "paid"
+    });
+  }
+}
+
+let className = "Pointe Shoes Class";
+
+if (classId === "wed") className = "Wednesday Class";
+if (classId === "sun") className = "Sunday Class";
+if (classId === "custom") className = "Pointe Shoes Class";
+
+    const today = new Date();
+
+    const formattedDate = today.toLocaleDateString('en-GB', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+
+    document.getElementById("classText").innerHTML =
+  "<span style='font-size:18px; font-weight:600; color:#222;'>" + className + "</span><br>" +
+  "<span style='font-size:13px; color:#888;'>" + formattedDate + "</span>";
+
+    document.getElementById("payBtn").onclick = function () {
+  const name = document.getElementById("nameInput").value;
+
+  if (!name || name.length < 2) {
+    alert("Enter a valid name");
+    return;
   }
 
-  // 💳 STRIPE LINKS
-  function getStripeLink(classId) {
-    // All classes use the same €4.50 Stripe link
-    return "https://buy.stripe.com/test_4gM3cucH49gq2hx0gJfw400";
-  }
+  const today = new Date();
+  const dd = String(today.getDate()).padStart(2, "0");
+  const mm = String(today.getMonth() + 1).padStart(2, "0");
+  const yyyy = today.getFullYear();
 
-  window.onload = () => {
+  const params = new URLSearchParams(window.location.search);
+const classId = params.get("class") || "custom";
 
-    const classId = getClassFromURL();
+const dateKey = dd + "-" + mm + "-" + yyyy + "_" + classId;
 
-    // ✅ Show class name
-    if (classId === "wed") {
-      document.getElementById("classText").innerText = "Wednesday Class";
-    } else if (classId === "sun") {
-      document.getElementById("classText").innerText = "Sunday Class";
-    } else if (classId === "custom") {
-      document.getElementById("classText").innerText = "Pointe Shoe Class";
-    } else {
-      document.getElementById("classText").innerText = "Invalid class";
-    }
+  // ✅ create entry FIRST
+  const newRef = db.ref("checkins/" + dateKey).push();
 
-    document.getElementById("payBtn").onclick = () => {
-      const name = document.getElementById("nameInput").value;
+  newRef.set({
+    name: name,
+    time: Date.now(),
+    status: "unpaid"
+  })
+  .then(function () {
 
-      if (!name) {
-        alert("Enter your name");
-        return;
-      }
+    const checkinId = newRef.key;
+    localStorage.setItem("lastCheckinKey", dateKey);
+localStorage.setItem("lastCheckinId", checkinId);
 
-      if (!classId) {
-        alert("Invalid class");
-        return;
-      }
+    // ✅ build Stripe link WITH success return
+    const stripeLink =
+  "https://buy.stripe.com/test_4gM3cucH49gq2hx0gJfw400"
+  + "?success_url=" + encodeURIComponent(
+      "https://evites-qr-cod.netlify.app/success.html?key=" + dateKey + "&id=" + checkinId
+    )
+  + "&cancel_url=" + encodeURIComponent(window.location.href);
 
-      const stripeLink = getStripeLink(classId);
+    document.getElementById("payBtn").innerText = "Redirecting...";
 
-      // 👉 GET TODAY DATE
-const today = new Date();
-
-const dd = String(today.getDate()).padStart(2, "0");
-const mm = String(today.getMonth() + 1).padStart(2, "0");
-const yyyy = today.getFullYear();
-
-// 👉 BUILD KEY
-const dateKey = `${dd}-${mm}-${yyyy}_${classId}`;
-
-// 🔥 SAVE
-      db.ref("checkins/" + dateKey).push({
-        name: name,
-        time: Date.now(),
-        status: "unpaid"
-      })
-      .then(() => {
-        const btn = document.getElementById("payBtn");
-        btn.innerText = "Redirecting...";
-        setTimeout(() => {
-          window.location.href = stripeLink;
-        }, 500);
-      })
-      .catch((error) => {
-        console.error(error);
-        alert("Error saving");
-      });
-    };
+    setTimeout(function () {
+      window.location.href = stripeLink;
+    }, 500);
+  })
+  .catch(function (error) {
+    console.error(error);
+    alert("Error saving");
+  });
+};
   };
 </script>
 

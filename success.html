@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Payment Successful</title>
+  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body>
+
+<div class="success-wrapper">
+
+  <div class="success-card">
+    <div class="success-icon">✓</div>
+
+    <h1>You're checked in</h1>
+
+    <p class="success-sub">
+      Payment successful<br>
+      See you in class ✨
+    </p>
+
+  </div>
+
+</div>
+
+<!-- 🔥 Firebase -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCeOJs6sjZCCmvhAftzrUeUyZ6wB4oXHNw",
+  authDomain: "evites-qr-code.firebaseapp.com",
+  databaseURL: "https://evites-qr-code-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "evites-qr-code",
+  storageBucket: "evites-qr-code.firebasestorage.app",
+  messagingSenderId: "976591325172",
+  appId: "1:976591325172:web:2ace676721ba1876bf5ba1"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// 🔥 GET STORED DATA — try URL params first, fall back to localStorage
+const params = new URLSearchParams(window.location.search);
+const dateKey = params.get("key") || localStorage.getItem("lastCheckinKey");
+const checkinId = params.get("id") || localStorage.getItem("lastCheckinId");
+
+if (dateKey && checkinId) {
+  db.ref("checkins/" + dateKey + "/" + checkinId).update({ status: "paid" })
+    .then(function () {
+      localStorage.removeItem("lastCheckinKey");
+      localStorage.removeItem("lastCheckinId");
+    });
+}
+</script>
+
+</body>
+</html>

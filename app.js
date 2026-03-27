@@ -44,6 +44,9 @@ let selectedClassId = null;
 let currentListenerRef = null;
 let customClasses = new Set(); // Track dates with custom classes
 let removedClasses = new Set(); // Track removed Wed/Sun classes
+let selectedDate = null;
+let allCheckinsData = {};
+let allTimeCounts = {};
 
 // =====================
 // HELPERS
@@ -75,6 +78,108 @@ function dateToDateKey(date) {
   const mm = String(date.getMonth() + 1).padStart(2, "0");
   const yyyy = date.getFullYear();
   return `${dd}-${mm}-${yyyy}`;
+}
+
+function getMonthTitle(year, month) {
+  const monthNames = ["January","February","March","April","May","June",
+                      "July","August","September","October","November","December"];
+  return monthNames[month] + " " + year;
+}
+
+function getWeekTitle(startDate) {
+  const endDate = new Date(startDate);
+  endDate.setDate(endDate.getDate() + 6);
+  const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const month1 = monthNames[startDate.getMonth()];
+  const month2 = monthNames[endDate.getMonth()];
+  const day1 = startDate.getDate();
+  const day2 = endDate.getDate();
+
+  if (startDate.getMonth() === endDate.getMonth()) {
+    return `${month1} ${day1} - ${day2}`;
+  } else {
+    return `${month1} ${day1} - ${month2} ${day2}`;
+  }
+}
+
+function buildMonth(year, month) {
+  const dayHeaders = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+
+  let html = '<div class="cal-grid">';
+  dayHeaders.forEach(d => html += `<div class="cal-header">${d}</div>`);
+
+  const firstDay = new Date(year, month, 1);
+  let startDow = firstDay.getDay();
+  startDow = startDow === 0 ? 6 : startDow - 1;
+
+  for (let i = 0; i < startDow; i++) {
+    html += '<div class="cal-day empty"></div>';
+  }
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month, day);
+    const dateStr = dateToDateKey(date);
+    const classId = getClassId(date.getDay());
+    const isRemoved = classId && removedClasses.has(`${dateStr}_${classId}`);
+    const isCustom = customClasses.has(dateStr);
+    const isToday = date.toDateString() === today.toDateString();
+
+    let cls = "cal-day";
+    if (isRemoved) cls += " no-class";
+    else if (classId === "wed") cls += " class-wed";
+    else if (classId === "sun") cls += " class-sun";
+    else if (isCustom) cls += " class-custom";
+    else cls += " no-class";
+    if (isToday) cls += " today";
+
+    const effectiveClassId = (classId && !isRemoved) ? classId : (isCustom ? "custom" : null);
+    const dateKey = effectiveClassId ? buildDateKey(date, effectiveClassId) : "";
+
+    html += `<div class="${cls}" data-key="${dateKey}" data-class="${effectiveClassId}" data-date="${date.toISOString()}">${day}</div>`;
+  }
+
+  html += "</div>";
+  return html;
+}
+
+function buildWeek(startDate) {
+  const endDate = new Date(startDate);
+  endDate.setDate(endDate.getDate() + 6);
+
+  let html = '<div class="week-grid">';
+
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(startDate);
+    date.setDate(date.getDate() + i);
+    const dateStr = dateToDateKey(date);
+    const classId = getClassId(date.getDay());
+    const isRemoved = classId && removedClasses.has(`${dateStr}_${classId}`);
+    const isCustom = customClasses.has(dateStr);
+    const isToday = date.toDateString() === today.toDateString();
+
+    let cls = "week-day";
+    if (isRemoved) cls += " no-class";
+    else if (classId === "wed") cls += " class-wed";
+    else if (classId === "sun") cls += " class-sun";
+    else if (isCustom) cls += " class-custom";
+    else cls += " no-class";
+    if (isToday) cls += " today";
+
+    const effectiveClassId = (classId && !isRemoved) ? classId : (isCustom ? "custom" : null);
+    const dateKey = effectiveClassId ? buildDateKey(date, effectiveClassId) : "";
+
+    const dayName = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][date.getDay()];
+
+    html += `<div class="${cls}" data-key="${dateKey}" data-class="${effectiveClassId}" data-date="${date.toISOString()}">
+      <div class="week-day-name">${dayName}</div>
+      <div class="week-day-num">${date.getDate()}</div>
+    </div>`;
+  }
+
+  html += '</div>';
+  return html;
 }
 
 function hasClass(date) {
@@ -152,114 +257,194 @@ async function removeCustomClass(dateStr, classType = "custom") {
 // CALENDAR RENDER
 // =====================
 function renderCalendar() {
-  if (currentView === "month") renderMonthView();
-  else renderWeekView();
+  renderSwipeCalendars();
 }
 
-function renderMonthView() {
-  const grid = document.getElementById("calendarGrid");
-  const title = document.getElementById("calTitle");
+const track = document.getElementById("calendarTrack");
 
-  const monthNames = ["January","February","March","April","May","June",
-                      "July","August","September","October","November","December"];
-  title.textContent = monthNames[currentMonth] + " " + currentYear;
+let startX = 0;
+let currentX = 0;
+let isDragging = false;
+let containerWidth = 0;
+let titleContainerWidth = 0;
 
-  const dayHeaders = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-  let html = '<div class="cal-grid">';
-  dayHeaders.forEach(d => { html += `<div class="cal-header">${d}</div>`; });
-
-  const firstDay = new Date(currentYear, currentMonth, 1);
-  let startDow = firstDay.getDay();
-  startDow = startDow === 0 ? 6 : startDow - 1;
-  for (let i = 0; i < startDow; i++) html += '<div class="cal-day empty"></div>';
-
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-  for (let day = 1; day <= daysInMonth; day++) {
-    const date = new Date(currentYear, currentMonth, day);
-    const dateStr = dateToDateKey(date);
-    const classId = getClassId(date.getDay());
-    const isRemoved = classId && removedClasses.has(`${dateStr}_${classId}`);
-    const isCustom = customClasses.has(dateStr);
-    const isToday = date.toDateString() === today.toDateString();
-    const effectiveClassId = (classId && !isRemoved) ? classId : (isCustom ? "custom" : null);
-    const dateKey = effectiveClassId ? buildDateKey(date, effectiveClassId) : null;
-    const isSelected = dateKey && dateKey === selectedDateKey;
-
-    let cls = "cal-day";
-    if (isRemoved) {
-      cls += " no-class"; // Removed days look like empty days
-    } else {
-      if (classId === "wed") cls += " class-wed";
-      else if (classId === "sun") cls += " class-sun";
-      else if (isCustom) cls += " class-custom";
-      else cls += " no-class";
-    }
-    if (isToday) cls += " today";
-    if (isSelected) cls += " selected";
-
-    const attrs = `data-key="${dateKey || ''}" data-class="${effectiveClassId || ''}" data-date="${date.toISOString()}"`;
-    html += `<div class="${cls}" ${attrs}>${day}</div>`;
-  }
-
-  html += '</div>';
-  grid.innerHTML = html;
-  attachDayHandlers(grid);
+function updateContainerWidth() {
+  containerWidth = document.getElementById("calendarWrapper").offsetWidth;
+  titleContainerWidth = document.getElementById("titleWrapper").offsetWidth;
 }
 
-function renderWeekView() {
-  const grid = document.getElementById("calendarGrid");
-  const title = document.getElementById("calTitle");
+track.addEventListener("touchstart", (e) => {
+  startX = e.touches[0].clientX;
+  currentX = startX;
+  isDragging = true;
+  updateContainerWidth(); // Ensure width is current
 
-  const weekEnd = new Date(weekStartDate);
-  weekEnd.setDate(weekEnd.getDate() + 6);
-  const fmt = { day: "numeric", month: "short" };
-  title.textContent = weekStartDate.toLocaleDateString("en-GB", fmt) + " – " + weekEnd.toLocaleDateString("en-GB", fmt);
+  track.style.transition = "none";
+});
 
-  const dayNames = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-  let html = '<div class="week-grid">';
+track.addEventListener("touchmove", (e) => {
+  if (!isDragging) return;
 
-  for (let i = 0; i < 7; i++) {
-    const date = new Date(weekStartDate);
-    date.setDate(date.getDate() + i);
-    const dateStr = dateToDateKey(date);
-    const classId = getClassId(date.getDay());
-    const isRemoved = classId && removedClasses.has(`${dateStr}_${classId}`);
-    const isCustom = customClasses.has(dateStr);
-    const isToday = date.toDateString() === today.toDateString();
-    const effectiveClassId = (classId && !isRemoved) ? classId : (isCustom ? "custom" : null);
-    const dateKey = effectiveClassId ? buildDateKey(date, effectiveClassId) : null;
-    const isSelected = dateKey && dateKey === selectedDateKey;
+  currentX = e.touches[0].clientX;
+  const diff = currentX - startX;
 
-    let cls = "week-day";
-    if (isRemoved) {
-      cls += " no-class"; // Removed days look like empty days
-    } else {
-      if (classId === "wed") cls += " class-wed";
-      else if (classId === "sun") cls += " class-sun";
-      else if (isCustom) cls += " class-custom";
-      else cls += " no-class";
-    }
-    if (isToday) cls += " today";
-    if (isSelected) cls += " selected";
+  track.style.transform = `translateX(${ -containerWidth + diff }px)`;
+  document.getElementById("titleTrack").style.transform = `translateX(${ -titleContainerWidth + diff }px)`;
+});
 
-    const attrs = `data-key="${dateKey || ''}" data-class="${effectiveClassId || ''}" data-date="${date.toISOString()}"`;
-    html += `<div class="${cls}" ${attrs}>
-      <div class="week-day-name">${dayNames[i]}</div>
-      <div class="week-day-num">${date.getDate()}</div>
-    </div>`;
+track.addEventListener("touchend", () => {
+  if (!isDragging) return;
+  isDragging = false;
+
+  const diff = currentX - startX;
+  const threshold = 60;
+  const titleTrack = document.getElementById("titleTrack");
+
+  track.style.transition = "transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)";
+  titleTrack.style.transition = "transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)";
+
+  if (diff < -threshold) {
+    track.style.transform = `translateX(${-2 * containerWidth}px)`;
+    titleTrack.style.transform = `translateX(${-2 * titleContainerWidth}px)`;
+
+    setTimeout(() => {
+      if (currentView === "month") {
+        currentMonth++;
+        if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+      } else {
+        weekStartDate.setDate(weekStartDate.getDate() + 7);
+      }
+      renderCalendar();
+      const tt = document.getElementById("titleTrack");
+      tt.style.transition = "none";
+      tt.style.transform = `translateX(-${titleContainerWidth}px)`;
+    }, 350);
+
+  } else if (diff > threshold) {
+    track.style.transform = `translateX(0px)`;
+    titleTrack.style.transform = `translateX(0px)`;
+
+    setTimeout(() => {
+      if (currentView === "month") {
+        currentMonth--;
+        if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+      } else {
+        weekStartDate.setDate(weekStartDate.getDate() - 7);
+      }
+      renderCalendar();
+      const tt = document.getElementById("titleTrack");
+      tt.style.transition = "none";
+      tt.style.transform = `translateX(-${titleContainerWidth}px)`;
+    }, 350);
+
+  } else {
+    track.style.transform = `translateX(-${containerWidth}px)`;
+    titleTrack.style.transform = `translateX(-${titleContainerWidth}px)`;
+  }
+});
+
+function renderSwipeCalendars() {
+  const track = document.getElementById("calendarTrack");
+  updateContainerWidth(); // Ensure width is current for this render
+
+  if (currentView === "month") {
+    let prevMonth = currentMonth - 1;
+    let prevYear = currentYear;
+    let nextMonth = currentMonth + 1;
+    let nextYear = currentYear;
+
+    if (prevMonth < 0) { prevMonth = 11; prevYear--; }
+    if (nextMonth > 11) { nextMonth = 0; nextYear++; }
+
+    track.innerHTML = `
+      <div class="calendar-page">${buildMonth(prevYear, prevMonth)}</div>
+      <div class="calendar-page">${buildMonth(currentYear, currentMonth)}</div>
+      <div class="calendar-page">${buildMonth(nextYear, nextMonth)}</div>
+    `;
+  } else {
+    // Week view
+    const prevWeekStart = new Date(weekStartDate);
+    prevWeekStart.setDate(prevWeekStart.getDate() - 7);
+
+    const nextWeekStart = new Date(weekStartDate);
+    nextWeekStart.setDate(nextWeekStart.getDate() + 7);
+
+    track.innerHTML = `
+      <div class="calendar-page">${buildWeek(prevWeekStart)}</div>
+      <div class="calendar-page">${buildWeek(weekStartDate)}</div>
+      <div class="calendar-page">${buildWeek(nextWeekStart)}</div>
+    `;
   }
 
-  html += '</div>';
-  grid.innerHTML = html;
-  attachDayHandlers(grid);
+  track.style.transition = "none";
+  track.style.transform = `translateX(-${containerWidth}px)`;
+
+  attachDayHandlers(track);
+  renderTitleTrack();
+  applySelection();
+}
+
+function applySelection() {
+  if (!selectedDate) return;
+  const target = selectedDate.toDateString();
+  document.querySelectorAll("[data-date]").forEach(cell => {
+    if (new Date(cell.dataset.date).toDateString() === target) {
+      cell.classList.add("selected");
+    }
+  });
+}
+
+function renderTitleTrack() {
+  const titleTrack = document.getElementById("titleTrack");
+
+  if (currentView === "month") {
+    let prevMonth = currentMonth - 1;
+    let prevYear = currentYear;
+    let nextMonth = currentMonth + 1;
+    let nextYear = currentYear;
+
+    if (prevMonth < 0) { prevMonth = 11; prevYear--; }
+    if (nextMonth > 11) { nextMonth = 0; nextYear++; }
+
+    titleTrack.innerHTML = `
+      <div class="title-page">${getMonthTitle(prevYear, prevMonth)}</div>
+      <div class="title-page">${getMonthTitle(currentYear, currentMonth)}</div>
+      <div class="title-page">${getMonthTitle(nextYear, nextMonth)}</div>
+    `;
+  } else {
+    const prevWeekStart = new Date(weekStartDate);
+    prevWeekStart.setDate(prevWeekStart.getDate() - 7);
+
+    const nextWeekStart = new Date(weekStartDate);
+    nextWeekStart.setDate(nextWeekStart.getDate() + 7);
+
+    titleTrack.innerHTML = `
+      <div class="title-page">${getWeekTitle(prevWeekStart)}</div>
+      <div class="title-page">${getWeekTitle(weekStartDate)}</div>
+      <div class="title-page">${getWeekTitle(nextWeekStart)}</div>
+    `;
+  }
 }
 
 function attachDayHandlers(grid) {
   grid.querySelectorAll("[data-date]").forEach(cell => {
     cell.onclick = () => {
       const dateKey = cell.dataset.key || null;
-      const classId = cell.dataset.class || null;
+      const rawClass = cell.dataset.class;
+      const classId = (rawClass && rawClass !== "null") ? rawClass : null;
       onDateClick(dateKey, classId, new Date(cell.dataset.date));
+    };
+    cell.ondblclick = (e) => {
+      e.stopPropagation();
+      const dateKey = cell.dataset.key || null;
+      const rawClass = cell.dataset.class;
+      const classId = (rawClass && rawClass !== "null") ? rawClass : null;
+      onDateClick(dateKey, classId, new Date(cell.dataset.date));
+      // Small delay to ensure panel content is updated before opening
+      setTimeout(() => {
+        if (selectedDateKey) listenToStudents(selectedDateKey);
+        openPanel();
+      }, 10);
     };
   });
 }
@@ -269,28 +454,30 @@ function attachDayHandlers(grid) {
 // =====================
 function onDateClick(dateKey, classId, date) {
   lastClickedDate = date;
+  selectedDate = date;
   const dateStr = date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 
   if (!classId) {
-    // No class on this day
     selectedDateKey = null;
     selectedClassId = null;
     document.getElementById("panelTitle").innerHTML = "<div style='font-size: 14px; color: #999;'>" + dateStr + "</div>";
     document.getElementById("panelNoClass").style.display = "block";
     document.getElementById("panelWithClass").style.display = "none";
   } else {
-    // Class exists on this day
     selectedDateKey = dateKey;
     selectedClassId = classId;
     document.getElementById("panelTitle").innerHTML = "<div>Pointe Shoes Class</div><div style='font-size: 13px; color: #999; margin-top: 4px;'>" + dateStr + "</div>";
     document.getElementById("panelNoClass").style.display = "none";
     document.getElementById("panelWithClass").style.display = "block";
     document.getElementById("qrWrapper").style.display = "none";
-    listenToStudents(dateKey);
   }
 
-  openPanel();
   renderCalendar();
+  const track = document.getElementById("calendarTrack");
+  updateContainerWidth();
+  track.style.transition = "none";
+  track.style.transform = `translateX(-${containerWidth}px)`;
+  renderStudentsSection();
 }
 
 // =====================
@@ -329,26 +516,31 @@ function listenToStudents(dateKey) {
 }
 
 // =====================
-// PANEL
+// PANEL & OPEN BUTTON
 // =====================
 const panel = document.getElementById("checkinPanel");
 const panelContent = document.querySelector(".panel-content");
+const openBtn = document.getElementById("openBtn");
 
 function openPanel() {
+  // Animate button out
+  openBtn.classList.add("hidden");
   panelContent.style.transition = "none";
   panelContent.style.transform = "translateX(-50%) translateY(100%)";
   panelContent.offsetHeight;
   panel.classList.add("active");
   requestAnimationFrame(() => {
-    panelContent.style.transition = "transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)";
+    panelContent.style.transition = "transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)";
     panelContent.style.transform = "translateX(-50%) translateY(0)";
   });
 }
 
 function closePanel() {
-  panelContent.style.transition = "transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)";
+  panelContent.style.transition = "transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)";
   panelContent.style.transform = "translateX(-50%) translateY(100%)";
-  setTimeout(() => panel.classList.remove("active"), 300);
+  panel.classList.remove("active");
+  // Slide button back in after panel starts closing
+  setTimeout(() => openBtn.classList.remove("hidden"), 150);
 }
 
 panel.onclick = (e) => { if (e.target === panel) closePanel(); };
@@ -486,37 +678,119 @@ document.getElementById("btnWeek").onclick = () => {
 // =====================
 // SWIPE DOWN TO CLOSE
 // =====================
-let startY = 0;
-let currentY = 0;
-let isDragging = false;
+let startYPanel = 0;
+let currentYPanel = 0;
+let isPanelSwiping = false;
 
 panelContent.addEventListener("touchstart", (e) => {
-  startY = e.touches[0].clientY;
-  currentY = startY;
-  isDragging = true;
+  if (!panel.classList.contains("active")) return;
+  startYPanel = e.touches[0].clientY;
+  currentYPanel = startYPanel;
+  isPanelSwiping = true;
   panelContent.style.transition = "none";
-}, { passive: false });
+}, { passive: true });
 
 panelContent.addEventListener("touchmove", (e) => {
-  if (!isDragging) return;
-  e.preventDefault();
-  currentY = e.touches[0].clientY;
-  const diff = currentY - startY;
-  if (diff > 0) panelContent.style.transform = `translateX(-50%) translateY(${diff * 0.9}px)`;
+  if (!isPanelSwiping) return;
+  currentYPanel = e.touches[0].clientY;
+  const diff = currentYPanel - startYPanel;
+  if (diff > 0) {
+    e.preventDefault();
+    panelContent.style.transform = `translateX(-50%) translateY(${diff}px)`;
+  }
 }, { passive: false });
 
 panelContent.addEventListener("touchend", () => {
-  if (!isDragging) return;
-  isDragging = false;
-  const diff = currentY - startY;
-  panelContent.style.transition = "transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)";
-  if (diff > 80) closePanel();
-  else panelContent.style.transform = "translateX(-50%) translateY(0)";
-  startY = 0;
-  currentY = 0;
+  if (!isPanelSwiping) return;
+  isPanelSwiping = false;
+  const diff = currentYPanel - startYPanel;
+  panelContent.style.transition = "transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)";
+  if (diff > 80) {
+    closePanel();
+  } else {
+    panelContent.style.transform = "translateX(-50%) translateY(0)";
+  }
+  startYPanel = 0;
+  currentYPanel = 0;
 });
+
+// =====================
+// ALL STUDENTS — global listener
+// =====================
+onValue(ref(db, "checkins"), (snapshot) => {
+  allCheckinsData = {};
+  allTimeCounts = {};
+
+  if (snapshot.exists()) {
+    snapshot.forEach((dateSnap) => {
+      allCheckinsData[dateSnap.key] = {};
+      dateSnap.forEach((checkinSnap) => {
+        const data = checkinSnap.val();
+        allCheckinsData[dateSnap.key][checkinSnap.key] = data;
+        if (data.status === "paid" && data.name) {
+          const name = data.name.trim();
+          allTimeCounts[name] = (allTimeCounts[name] || 0) + 1;
+        }
+      });
+    });
+  }
+
+  renderStudentsSection();
+});
+
+function renderStudentsSection() {
+  const list = document.getElementById("allStudentsList");
+  list.innerHTML = "";
+
+  if (!selectedDateKey) return;
+
+  const dayCheckins = allCheckinsData[selectedDateKey] || {};
+  const entries = Object.values(dayCheckins).filter(d => d.name);
+
+  if (entries.length === 0) return;
+
+  entries.sort((a, b) => (a.time || 0) - (b.time || 0));
+
+  entries.forEach(({ name, status }) => {
+    const trimmedName = name.trim();
+    const totalVisits = allTimeCounts[trimmedName] || 1;
+    const li = document.createElement("li");
+    const statusColor = status === "paid" ? "#2bb673" : "#e53e3e";
+    li.innerHTML = `<span class="student-name">${trimmedName}</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:12px;color:${statusColor}">${status}</span>
+        <span class="student-count">${totalVisits}</span>
+      </div>`;
+    list.appendChild(li);
+  });
+}
+
+// =====================
+// OPEN BUTTON
+// =====================
+openBtn.addEventListener("click", () => {
+  // Click pulse animation
+  openBtn.style.transform = "translateX(-50%) scale(0.88)";
+  setTimeout(() => {
+    openBtn.style.transform = "translateX(-50%) scale(1)";
+    setTimeout(() => {
+      if (selectedDateKey) listenToStudents(selectedDateKey);
+      openPanel();
+    }, 120);
+  }, 120);
+});
+
 
 // =====================
 // INIT
 // =====================
-renderCalendar();
+requestAnimationFrame(() => {
+  renderCalendar();
+  setTimeout(() => {
+    const todayClassId = getClassId(today.getDay());
+    const isCustomToday = customClasses.has(dateToDateKey(today));
+    const effectiveId = todayClassId || (isCustomToday ? "custom" : null);
+    const todayDateKey = effectiveId ? buildDateKey(today, effectiveId) : null;
+    onDateClick(todayDateKey, effectiveId, today);
+  }, 50);
+});

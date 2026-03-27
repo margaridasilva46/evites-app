@@ -24,33 +24,45 @@
 
   <div class="cal-nav">
     <button class="nav-btn" id="prevBtn">‹</button>
-    <span id="calTitle"></span>
+    <div id="titleWrapper">
+      <div id="titleTrack"></div>
+    </div>
     <button class="nav-btn" id="nextBtn">›</button>
   </div>
 
-  <div id="calendarGrid"></div>
+  <div id="calendarWrapper">
+    <div id="calendarTrack"></div>
+  </div>
+
+  <div class="students-section">
+    <h2 class="students-title">Students <span class="students-title-sub">total visits</span></h2>
+    <ul id="allStudentsList"></ul>
+  </div>
 </div>
 
-<!-- Slide-up panel -->
-<div id="checkinPanel" class="panel">
-  <div class="panel-content">
-    <div class="handle"></div>
-    <h3 id="panelTitle"></h3>
+<!-- Overlay backdrop -->
+<div id="checkinPanel" class="panel"></div>
 
-    <div id="panelNoClass" style="text-align: center; padding: 20px 0;">
-      <p style="color: #999; margin-bottom: 12px;">No class scheduled for this day</p>
-      <button id="addClassBtn">+ Add Class</button>
-    </div>
+<!-- Open button -->
+<button id="openBtn">+</button>
 
-    <div id="panelWithClass" style="display: none;">
-      <p id="checkinCount">0 students checked-in</p>
-      <ul id="studentList"></ul>
-      <button id="showQrBtn">Show QR Code</button>
-      <div id="qrWrapper">
-        <canvas id="qrCanvas"></canvas>
-      </div>
-      <button id="removeClassBtn">Remove Class</button>
+<!-- Slide-up panel content (outside overlay so it's always visible) -->
+<div class="panel-content">
+  <h3 id="panelTitle"></h3>
+
+  <div id="panelNoClass" style="text-align: center; padding: 20px 0;">
+    <p style="color: #999; margin-bottom: 12px;">No class scheduled for this day</p>
+    <button id="addClassBtn">+ Add Class</button>
+  </div>
+
+  <div id="panelWithClass" style="display: none;">
+    <p id="checkinCount">0 students checked-in</p>
+    <ul id="studentList"></ul>
+    <button id="showQrBtn">Show QR Code</button>
+    <div id="qrWrapper">
+      <canvas id="qrCanvas"></canvas>
     </div>
+    <button id="removeClassBtn">Remove Class</button>
   </div>
 </div>
 

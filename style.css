@@ -67,10 +67,51 @@ h1 {
   line-height: 1;
 }
 
-#calTitle {
+#titleWrapper {
+  position: relative;
+  overflow: hidden;
+  flex: 1;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+#titleTrack {
+  display: flex;
+  width: 300%;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  touch-action: none;
+}
+
+.title-page {
+  width: calc(100% / 3);
+  flex-shrink: 0;
   font-weight: 600;
   font-size: 16px;
   color: #2d2d2d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+#calendarWrapper {
+  position: relative;
+  overflow: hidden;
+  padding-bottom: 6px;
+}
+
+#calendarTrack {
+  display: flex;
+  width: 300%;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  touch-action: none;
+}
+
+.calendar-page {
+  width: calc(100% / 3);
+  flex-shrink: 0;
+  padding: 0 8px;
+  box-sizing: border-box;
 }
 
 /* =====================
@@ -144,6 +185,10 @@ h1 {
   outline: 2px solid #999;
 }
 
+.cal-day.selected {
+  box-shadow: 0 0 0 2px currentColor;
+}
+
 .cal-day.class-wed.selected {
   background: #2bb673;
   color: white;
@@ -178,9 +223,11 @@ h1 {
 
 .week-day {
   text-align: center;
-  padding: 10px 4px;
+  padding: 10px 4px 14px;
   border-radius: 10px;
   color: #ccc;
+  box-sizing: border-box;
+  min-height: 64px;
 }
 
 .week-day.class-wed {
@@ -229,6 +276,10 @@ h1 {
   outline: 2px solid #999;
 }
 
+.week-day.selected {
+  box-shadow: 0 0 0 2px currentColor;
+}
+
 .week-day.class-wed.selected {
   background: #2bb673;
   color: white;
@@ -275,6 +326,7 @@ h1 {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.3s ease;
+  z-index: 100;
 }
 
 .panel.active {
@@ -286,7 +338,7 @@ h1 {
    PANEL CONTENT
    ===================== */
 .panel-content {
-  position: absolute;
+  position: fixed;
   bottom: 0;
   width: 100%;
   max-width: 420px;
@@ -299,22 +351,43 @@ h1 {
   height: 65vh;
   transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
   overflow-y: auto;
+  z-index: 200;
 }
 
-.panel.active .panel-content {
+
+/* =====================
+   OPEN BUTTON
+   ===================== */
+#openBtn {
+  position: fixed;
+  bottom: 36px;
+  left: 50%;
   transform: translateX(-50%) translateY(0);
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: #e8e8e8;
+  color: #888;
+  font-size: 28px;
+  font-weight: 300;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+}
+
+#openBtn.hidden {
+  transform: translateX(-50%) translateY(160%);
 }
 
 /* =====================
    PANEL CONTENTS
    ===================== */
-.handle {
-  width: 40px;
-  height: 5px;
-  background: #ccc;
-  border-radius: 10px;
-  margin: 0 auto 14px;
-}
 
 #panelTitle {
   font-size: 15px;
@@ -336,7 +409,7 @@ h1 {
 }
 
 #studentList li {
-  padding: 8px 0;
+  padding: 8px ;
   border-bottom: 1px solid #eee;
   font-size: 14px;
 }
@@ -393,7 +466,7 @@ h1 {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0,0,0,0.4);
+  background: rgba(0,0,0,0.2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -409,13 +482,13 @@ h1 {
 }
 
 .modal-content {
-  background: white;
-  border-radius: 16px;
+  background: #f9f9f9;
+  border-radius: 22px;
   width: 90%;
-  max-width: 360px;
-  padding: 20px;
+  max-width: 340px;
+  padding: 18px 16px;
   box-sizing: border-box;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.1);
   max-height: 70vh;
   overflow-y: auto;
 }
@@ -424,52 +497,223 @@ h1 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .modal-header h2 {
   margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: #777;
-  letter-spacing: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: #bbb;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .modal-close {
-  background: none;
+  background: #ececec;
   border: none;
-  font-size: 24px;
+  font-size: 16px;
   color: #999;
   cursor: pointer;
   padding: 0;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .modal-close:hover {
-  color: #555;
+  background: #e0e0e0;
+  color: #666;
 }
 
 .modal-body {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .class-option {
   padding: 14px 16px;
-  border: 1.5px solid #eee;
-  border-radius: 12px;
-  transition: 0.2s;
+  border: none;
+  border-radius: 14px;
+  transition: background 0.2s;
   background: white;
   font-size: 15px;
+  font-weight: 500;
   color: #2d2d2d;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
 
 .class-option:hover {
-  border-color: #2bb673;
   background: #f0fbf6;
+}
+
+/* =====================
+   STUDENTS SECTION
+   ===================== */
+.students-section {
+  margin-top: 24px;
+}
+
+.students-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 10px;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.students-title-sub {
+  font-size: 12px;
+  font-weight: 500;
+  color: #ccc;
+  text-transform: none;
+  letter-spacing: 0;
+  padding-right: 10px;
+}
+
+#allStudentsList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#allStudentsList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: white;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 14px;
+  color: #2d2d2d;
+}
+
+.student-name {
+  font-weight: 500;
+}
+
+.student-count {
+  background: #f0fbf6;
+  color: #2bb673;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  min-width: 28px;
+  text-align: center;
+}
+
+
+.success-icon {
+  font-size: 64px;
+  margin-bottom: 10px;
+}
+
+.success-text {
+  color: #666;
+  margin-top: 10px;
+}
+
+/* =====================
+   SUCCESS PAGE CLEAN
+===================== */
+
+.success-wrapper {
+  min-height: 100vh;
+  display: flex;
+  justify-content: flex-start;
+padding-top: 80px; /* 👈 adjust this */
+  align-items: center;
+  background: #f5f6f8;
+  padding: 20px;
+  box-sizing: border-box;
+  transform: translateY(-50px); /* 👈 MOVE EVERYTHING UP */
+}
+
+/* BIGGER CARD */
+.success-card {
+  background: white;
+  padding: 36px 28px 32px;
+  border-radius: 26px;
+
+  width: 100%;
+  max-width: 380px;
+
+  text-align: center;
+
+  box-shadow: 0 12px 40px rgba(0,0,0,0.06);
+
+  animation: successFade 0.5s ease;
+}
+
+/* ICON */
+.success-icon {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 20px;
+
+  border-radius: 50%;
+  background: #2bb673;
+  color: white;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 32px;
+  font-weight: 600;
+
+  animation: popIn 0.4s ease;
+}
+
+/* TEXT */
+.success-card h1 {
+  font-size: 22px;
+  margin-bottom: 8px;
+}
+
+.success-sub {
+  font-size: 15px;
+  color: #888;
+  margin-bottom: 24px;
+}
+
+/* BUTTON already matches your app */
+
+/* ✨ ANIMATIONS */
+@keyframes successFade {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes popIn {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
